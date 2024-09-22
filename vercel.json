@@ -1,0 +1,17 @@
+{
+  "buildCommand": "next build",
+  "crons": [
+    {
+      "path": "/api/cron/bi-daily",
+      "schedule": "0 12 */2 * *"
+    },
+    {
+      "path": "/api/cron/daily",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/twice-daily",
+      "schedule": "0 */12 * * *"
+    }
+  ]
+}

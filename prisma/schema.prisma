@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+// Necessary for Next auth
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? // @db.Text
+  access_token      String? // @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? // @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum SchedulingOrder {
+  CHRONOLOGICAL
+  SHUFFLE
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  name               String?
+  email              String              @unique
+  emailVerified      DateTime?
+  image              String?
+  accounts           Account[]
+  sessions           Session[]
+  resetPasswordToken ResetPasswordToken?
+  signedUpWithReferralCode         String?
+  referralBonusApplied           Boolean @default(false)
+  stripeCustomerId   String?             @unique
+  admin              Boolean             @default(false)
+  priceId           String?
+  highestPriceId           String?
+  status             String?
+  paymentStatus      String?
+  isRunning          Boolean             @default(false)
+  OAuthTokens        OAuth[]
+  videos             Video[]
+  clips              Clip[]
+  lastScheduledAt    DateTime?
+  schedulingOrder    SchedulingOrder     @default(CHRONOLOGICAL)
+  credits            Int                 @default(3)
+  QueuedVideo QueuedVideo[]
+  
+  affiliate          Affiliate?
+  referredBy         Affiliate?          @relation("AffiliateReferrals", fields: [referredById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  referredById       String?
+
+  @@index([referredById])
+}
+
+model Affiliate {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  framerPage   String
+  affiliateId      String   @unique
+  signupPageClicks           Int      @default(0)
+  referredUsers     User[]   @relation("AffiliateReferrals")
+  conversions      Int      @default(0)
+  unpaidCommission Float    @default(0)
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String   @unique
+}
+
+model OAuth {
+  id           String   @id @default(cuid())
+  provider     String
+  refreshToken String
+  invalid      Boolean  @default(false)
+  selectedChannelId    String?
+  selectedChannelName    String?
+  selectedChannelImage    String?
+  selectedPlaylistId    String?
+  selectedPlaylistName    String?
+  selectedPlaylistImage    String?
+  postAsPrivate      Boolean             @default(true)
+  notifySubscribers      Boolean             @default(false)
+  postingFrequency      String            @default("2x")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, userId])
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model ResetPasswordToken {
+  id      String   @id @default(cuid())
+  userId  String   @unique
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token   String   @unique
+  expires DateTime
+  expired Boolean  @default(false)
+}
+
+model Video {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  youtube_id        String
+  isProcessed       Boolean  @default(false)
+  clips             Clip[]
+  singleGeneratedVideo Boolean @default(false)
+
+  @@unique([userId, youtube_id, singleGeneratedVideo], name: "usersVideo")
+  @@index([userId])
+}
+
+model Clip {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoId           String
+  video             Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  bucketUrl         String?
+  rawClipBucketUrl         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  startTimeInOriginalVideoMs Int?
+  endTimeInOriginalVideoMs Int?
+  queuedVideoId     String?  @unique
+  queuedVideo       QueuedVideo? @relation(fields: [queuedVideoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bucketUrl], name: "usersClip")
+  @@index([videoId])
+}
+
+model QueuedVideo {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  status            String
+
+  
+  clip            Clip?
+
+  @@index([userId])
+}
+
